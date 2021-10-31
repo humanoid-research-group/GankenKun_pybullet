@@ -9,15 +9,16 @@ from foot_step_planner import *
 from preview_control import *
 from time import sleep
 import csv
+import matplotlib.pyplot as plt
 
 
 class walking():
-    def __init__(self, RobotId, left_foot0, right_foot0, joint_angles, pc):
+    def __init__(self, RobotId, left_foot0, right_foot0, joint_angles, pc, fsp):
         self.kine = kinematics(RobotId)
         self.left_foot0, self.right_foot0 = left_foot0, right_foot0
         self.joint_angles = joint_angles
         self.pc = pc
-        self.fsp = foot_step_planner(0.05, 0.03, 0.2, 0.34, 0.06)
+        self.fsp = fsp
         self.X = np.matrix([[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
         self.pattern = []
         self.left_up = self.right_up = 0.0
@@ -117,11 +118,14 @@ class walking():
                                                                               1], self. left_foot0[2] + self.left_up, 0.0, 0.0, self.th - lo[0, 2]]
         right_foot = [self.right_foot0[0] + ro[0, 0], self.right_foot0[1] + ro[0,
                                                                                1], self.right_foot0[2] + self.right_up, 0.0, 0.0, self.th - ro[0, 2]]
+        print("left foot: \n", left_foot)
+        print("right foot: \n", right_foot)
         self.joint_angles = self.kine.solve_ik(
             left_foot, right_foot, self.joint_angles)
-        xp = [X[0, 2], X[0, 3]]
+        xp = [X[0, 0], X[0, 1]]
+        zp = [X[0, 2], X[0, 3]]
 
-        return self.joint_angles, left_foot, right_foot, xp, len(self.pattern)
+        return self.joint_angles, left_foot, right_foot, xp, zp, len(self.pattern)
 
 
 if __name__ == '__main__':
@@ -130,8 +134,8 @@ if __name__ == '__main__':
     p.setGravity(0, 0, -9.8)
     p.setTimeStep(TIME_STEP)
 
-    planeId = p.loadURDF("../URDF/plane.urdf", [0, 0, 0])
-    RobotId = p.loadURDF("../URDF/gankenkun.urdf", [0, 0, 0])
+    planeId = p.loadURDF("./URDF/plane.urdf", [0, 0, 0])
+    RobotId = p.loadURDF("./URDF/gankenkun.urdf", [0, 0, 0])
 
     index = {p.getBodyInfo(RobotId)[0].decode('UTF-8'): -1, }
     for id in range(p.getNumJoints(RobotId)):
@@ -150,8 +154,9 @@ if __name__ == '__main__':
                   right_foot0[1] - 0.01, right_foot0[2] + 0.02]
 
     pc = preview_control(0.01, 1.0, 0.27)
+    fsp = foot_step_planner_v1(0.05, 0.03, 0.2, 0.34, 0.06)
 
-    walk = walking(RobotId, left_foot, right_foot, joint_angles, pc)
+    walk = walking(RobotId, left_foot, right_foot, joint_angles, pc, fsp)
 
     index_dof = {p.getBodyInfo(RobotId)[0].decode('UTF-8'): -1, }
     for id in range(p.getNumJoints(RobotId)):
@@ -163,14 +168,30 @@ if __name__ == '__main__':
     with open('result.csv', mode='w') as f:
         f.write('')
     foot_step = [0, ] * 10
+    x_cnt = 0
+    torso_pos = []
+    zmp_pos = []
+    left_foot_pos = []
+    right_foot_pos = []
+    left_foot_y = []
+    fig, axs = plt.subplots(4, 2)
+    fig.tight_layout(pad=1.0)
+    axs = axs.ravel()
+
     while p.isConnected():
         j += 1
         if j >= 10:
-            joint_angles, lf, rf, xp, n = walk.getNextPos()
+            joint_angles, lf, rf, xp, zp, n = walk.getNextPos()
+            torso_pos.append(xp)
+            zmp_pos.append(zp)
+            left_foot_pos.append(lf)
+            right_foot_pos.append(rf)
+
             with open('result.csv', mode='a') as f:
                 writer = csv.writer(f)
                 writer.writerow(np.concatenate([lf, rf, xp]))
             j = 0
+            x_cnt += 1
             if n == 0:
                 if (len(foot_step) <= 6):
                     foot_step = walk.setGoalPos(
@@ -187,5 +208,36 @@ if __name__ == '__main__':
                     RobotId, id, p.POSITION_CONTROL, joint_angles[qIndex - 7])
 
         p.stepSimulation()
+        if x_cnt > 200:
+            break
+
+    torso_pos = np.asarray(torso_pos)
+    zmp_pos = np.asarray(zmp_pos)
+    left_foot_pos = np.asarray(left_foot_pos).squeeze()
+    right_foot_pos = np.asarray(right_foot_pos).squeeze()
+
+    print(torso_pos.shape)
+    print(left_foot_pos.shape)
+    print(right_foot_pos.shape)
+
+    print(torso_pos[0])
+    print(left_foot_pos[0])
+    print(right_foot_pos[0])
+
+    axs[0].plot(torso_pos[:, 0], label='Torso X')
+    axs[0].plot(zmp_pos[:, 0], label='ZMP X')
+    axs[1].plot(torso_pos[:, 1], label='Torso Y')
+    axs[1].plot(zmp_pos[:, 1], label='ZMP Y')
+    axs[2].plot(left_foot_pos[:, 2], label='Foot Left Z')
+    axs[2].plot(right_foot_pos[:, 2], label='Foot Right Z')
+    axs[2].legend(loc='upper left', prop={'size': 10})
+    axs[3].plot(left_foot_pos[:, 1], label='Foot Left Y')
+    axs[3].plot(right_foot_pos[:, 1], label='Foot Right Y')
+    axs[3].legend(loc='upper left', prop={'size': 10})
+    axs[4].plot(left_foot_pos[:, 0], label='Foot Left X')
+    axs[4].plot(right_foot_pos[:, 0], label='Foot Right X')
+    axs[4].legend(loc='upper left', prop={'size': 10})
+    plt.show()
+
 #    sleep(0.01)
 #    sleep(TIME_STEP)

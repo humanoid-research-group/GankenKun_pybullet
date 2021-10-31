@@ -54,8 +54,8 @@ class preview_control():
 
         self.debug = debug
         self.dt = dt
-        self.n_preview = int(preview_t//self.dt)
-
+        self.n_preview = int(preview_t // self.dt)
+        self.com_height = z
         G = 9.8
         A = np.matrix([
             [1.0, self.dt, self.dt**2 / 2],
@@ -186,11 +186,13 @@ class preview_control():
 
 def vc_step_planner():
 
-    preview_t = 1.2
-    dt = 0.05
+    preview_t = 1.5
+    pc_dt = 0.0015
+    sys_dt = 0.001
 
-    planner = foot_step_planner(dt=dt, n_steps=12)
-    pc = preview_control(dt=dt, preview_t=preview_t)
+    planner = foot_step_planner(
+        dt=sys_dt, n_steps=4, dsp_ratio=0.0, t_step=0.34)
+    pc = preview_control(dt=pc_dt, preview_t=preview_t)
 
     fig, axs = plt.subplots(2, 2)
     fig.tight_layout(pad=1.0)
@@ -200,9 +202,11 @@ def vc_step_planner():
     state_x = pc.initStateErr(pos=0, e=0)
     state_y = pc.initStateErr(pos=0, e=0)
 
+    supp_foot = np.asarray([0, -0.03525, 0]).reshape((3, 1))
+    torso = np.asarray([0, 0.0, 0]).reshape((3, 1))
     # support right with next in left
     foot_step, torso_pos, zmp_pos, timer_count = planner.calculate(
-        (0.2, 0.0, 0.0), (0, -0.03525, 0), (0, 0, 0), 'left', 'start')
+        (0.2, 0.0, 0.0), supp_foot, torso, 'left', True)
 
     foot_step0 = np.asarray(foot_step)
     zmp_pos = np.asarray(zmp_pos)
@@ -251,3 +255,4 @@ def vc_step_planner():
 
 if __name__ == '__main__':
     vc_step_planner()
+    # vc_step_planner_v2()
