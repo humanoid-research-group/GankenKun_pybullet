@@ -32,7 +32,8 @@ class walking():
         Time step, by default 0.01
     """
 
-    def __init__(self, pc: preview_control, fsp: foot_step_planner, foot_offset: List = [0, 0, 0], dt: float = 0.01):
+    def __init__(self, kine: kinematics, pc: preview_control, fsp: foot_step_planner, foot_offset: List = [0, 0, 0], dt: float = 0.01):
+        self.kine = kine
         self.pc = pc
         self.fsp = fsp
         self.left_is_swing = True
@@ -96,8 +97,19 @@ class walking():
         # ZMP Buffer FIFO
         self.zmp_buffer = np.zeros((0, 2), dtype=np.float32)
 
-        self.x_zmp = np.zeros((3, 1), dtype=np.float32)  # x,y,z
-        self.x_com = np.zeros((3, 1), dtype=np.float32)  # x,y,z
+        self.x_zmp = np.zeros((3, 1), dtype=np.float32)  # x,y,theta
+        self.x_com = np.zeros((3, 1), dtype=np.float32)  # x,y,theta
+        self.x_err = np.zeros((2, 1), dtype=np.float32)  # x,y
+        self.x_err_prev = np.zeros((2, 1), dtype=np.float32)  # x,y
+        self.x_dot_err = np.zeros((2, 1), dtype=np.float32)  # x,y
+
+        # Feedback control
+        # TODO: Gain tuning
+        self.ank_kp = {'pitch': 0.1, 'roll': 0.1}
+        self.ank_kd = {'pitch': 0.01, 'roll': 0.01}
+        self.hip_max = np.radians(40)
+        self.Thip = [0.3 * self.fsp.t_step, 0.5 *
+                     self.fsp.t_step]
 
         # Get current com state
         self.state_x = pc.initStateErr(
@@ -245,7 +257,7 @@ class walking():
         # print('Left foot w.r.t Torso ', self.left_foot_traj.reshape(1, -1))
         # print('#### \n')
 
-    def get_walk_pattern(self):
+    def get_walk_pattern(self, torso_pose: Tuple, left_foot_pose: Tuple, right_foot_pose: Tuple, curr_joint_angles: List):
         """Compute walk pattern at time (t)
 
         Returns
@@ -253,10 +265,34 @@ class walking():
         torso_traj: np.ndarray
             Torso pose at time (t) [x,y,z,th]
         left_foot_traj: np.ndarray
-            Left foot pose at time (t) [x,y,z,th]
+            Left foot pose at time (t) [x,y,z,r,p,y]
         right_foot_traj: np.ndarray
-            Right foot pose at time (t) [x,y,z,th]
+            Right foot pose at time (t) [x,y,z,r,p,y]
         """
+
+        # TODO: Compute current state error
+        state_torso_p, state_torso_q = np.array(
+            torso_pose[0], dtype=np.float32).reshape((3, 1)), np.array(torso_pose[1], dtype=np.float32)
+        state_left_p, state_left_q = np.array(
+            left_foot_pose[0], dtype=np.float32).reshape((3, 1)), np.array(left_foot_pose[1], dtype=np.float32)
+        state_right_p, state_right_q = np.array(
+            right_foot_pose[0], dtype=np.float32).reshape((3, 1)), np.array(right_foot_pose[1], dtype=np.float32)
+
+        # Compute diff w.r.t. support foot
+        if self.left_is_swing:
+            foot_rot = R.from_quat(state_right_q).as_euler('xyz')
+            rot_offset = self.fsp.pose_global2d(
+                np.array([[float(self.foot_offset[0])], [float(self.foot_offset[1])], [0]], dtype=np.float32), np.array([[float(state_right_p[0])], [float(state_right_p[1])], [float(foot_rot[2])]], dtype=np.float32))
+
+            x_diff = np.arctan2((state_right_p[:2] - state_torso_p[:2]), np.array(
+                [[self.pc.com_height], [self.pc.com_height]], dtype=np.float32))
+        else:
+            foot_rot = R.from_quat(state_left_q).as_euler('xyz')
+            rot_offset = self.fsp.pose_global2d(
+                np.array([[float(self.foot_offset[0])], [-float(self.foot_offset[1])], [0]], dtype=np.float32), np.array([[float(state_left_p[0])], [float(state_left_p[1])], [float(foot_rot[2])]], dtype=np.float32))
+
+            x_diff = np.arctan2(state_left_p[:2] - state_torso_p[:2], np.array(
+                [[self.pc.com_height], [self.pc.com_height]], dtype=np.float32))
 
         # Calculate the target torso and foots
         if self.t_sim == 0:
@@ -292,32 +328,72 @@ class walking():
             self.state_x, self.zmp_buffer[:, 0])
         self.state_y, zmp_y, _ = self.pc.updateStateErr(
             self.state_y, self.zmp_buffer[:, 1])
+
+        # Compute the COM trajectory
         self.calculateCOMTraj(
             self.t_sim, [float(self.state_x[0][0]), float(self.state_y[0][0])])
+
+        # Compute swing foot trajectory
         self.calcSwingFoot(self.t_sim)
+
+        self.cur_torso = self.x_com
+        self.x_zmp = np.array([float(zmp_x), float(zmp_y), 0]).reshape((3, 1))
 
         if self.left_is_swing:
             self.cur_rfoot = self.init_supp_position
             self.cur_lfoot = self.swing_foot_traj[:3]
 
+            rel_supp = self.right_foot_traj[:3]
+
         else:
             self.cur_rfoot = self.swing_foot_traj[:3]
             self.cur_lfoot = self.init_supp_position
 
-        self.cur_torso = self.x_com
-        self.x_zmp = np.array([float(zmp_x), float(zmp_y), 0]).reshape((3, 1))
-
-        # print('COM: ', float(self.state_x[0][0]), float(self.state_y[0][0]))
-        # print('Torso', self.cur_torso)
-        # print('Right foot ', self.cur_rfoot.reshape(1, -1))
-        # print('Left foot ', self.cur_lfoot.reshape(1, -1))
-
+        # Compute final foot poses
         self.calcFootPose()
+
+        if self.left_is_swing:
+            rel_supp = np.arctan2(self.right_foot_traj[:2], np.array(
+                [[self.pc.com_height], [self.pc.com_height]], dtype=np.float32))
+
+        else:
+            rel_supp = np.arctan2(self.left_foot_traj[:2], np.array(
+                [[self.pc.com_height], [self.pc.com_height]], dtype=np.float32))
+
+        # TODO: Check equation
+        # Compute error w.r.t. support foot
+        self.x_err = x_diff - rel_supp
+        self.x_dot_err = (self.x_err - self.x_err_prev) / self.dt_sim
+
+        # Apply ankle strategy S.J. Yi eq. (5)
+        single_ph = self.fsp.calcSuppPhase(self.t_sim)
+        t_func = self.fsp.calcSuppFunction(single_ph)
+
+        ankle_d_p = t_func * \
+            (self.ank_kp['pitch'] * float(self.x_err[0]) +
+             self.ank_kd['pitch'] * float(self.x_dot_err[0]))
+        ankle_d_r = t_func * \
+            (self.ank_kp['roll'] * float(self.x_err[1]) +
+             self.ank_kd['roll'] * float(self.x_dot_err[1]))
+
+        # TODO: Apply hip strategy S.J. Yi (11)
+
+        target_joint_angles = self.kine.solve_ik(
+            self.left_foot_traj, self.right_foot_traj, curr_joint_angles)
+
+        # TODO: Check roll direction
+        if self.left_is_swing:
+            target_joint_angles[self.kine.index_dof['right_ankle_pitch_link']] -= ankle_d_p
+            target_joint_angles[self.kine.index_dof['right_ankle_roll_link']] -= ankle_d_r
+        else:
+            target_joint_angles[self.kine.index_dof['left_ankle_pitch_link']] -= ankle_d_p
+            target_joint_angles[self.kine.index_dof['left_ankle_roll_link']] += ankle_d_r
 
         self.t_sim += self.dt_sim
 
         # Buffer FIFO: Pop com traj at each iteration
         self.zmp_buffer = self.zmp_buffer[1:]
+        self.x_err_prev = self.x_err.copy()
 
         if self.t_sim > self.fsp.t_step:
             self.t_sim = 0
@@ -325,7 +401,7 @@ class walking():
             self.swapFoot()
             # print("#################### SWITCH #################")
 
-        return self.torso_traj, self.left_foot_traj, self.right_foot_traj
+        return self.torso_traj, self.left_foot_traj, self.right_foot_traj, target_joint_angles
 
 
 def walking_plot():
@@ -493,9 +569,15 @@ def walking_sim():
     kine = kinematics(RobotId)
 
     # Get initial pose
-    left_foot0 = p.getLinkState(RobotId, index['left_foot_link'])[0]
-    right_foot0 = p.getLinkState(RobotId, index['right_foot_link'])[0]
-    torso0 = p.getLinkState(RobotId, index['body_link'])[0]
+    left_foot_pose = p.getLinkState(RobotId, index['left_foot_link'])[4:6]
+    right_foot_pose = p.getLinkState(RobotId, index['right_foot_link'])[4:6]
+    com_position = p.getLinkState(RobotId, index['body_link'])[4]
+    torso_orientation = p.getLinkState(RobotId, index['body_link'])[5]
+    torso_pose = (com_position, torso_orientation)
+
+    print('Left foot: \n', left_foot_pose)
+    print('Right foot: \n', right_foot_pose)
+    print('Torso: \n', torso_pose)
 
     left_ank_roll0 = p.getLinkState(RobotId, index['left_ankle_roll_link'])[0]
     left_ank_pitch0 = p.getLinkState(
@@ -506,12 +588,6 @@ def walking_sim():
         if p.getJointInfo(RobotId, id)[3] > -1:
             joint_angles += [0, ]
 
-    # Offset initial pose
-    left_foot = [left_foot0[0] - 0.015,
-                 left_foot0[1] + 0.01, left_foot0[2] + 0.02]
-    right_foot = [right_foot0[0] - 0.015,
-                  right_foot0[1] - 0.01, right_foot0[2] + 0.02]
-
     preview_t = 1.5
     pc_dt = 0.0015
     sys_dt = 0.001
@@ -519,8 +595,8 @@ def walking_sim():
     fsp = foot_step_planner(dt=sys_dt, n_steps=4, dsp_ratio=0.15,
                             t_step=0.34, foot_separation=0.044)
     pc = preview_control(dt=pc_dt, preview_t=preview_t)
-    walk = walking(pc, fsp,
-                   foot_offset=[-0.015, 0.01, 0.02], dt=sys_dt)
+    walk = walking(kine, pc, fsp,
+                   foot_offset=[-0.025, 0.01, 0.02], dt=sys_dt)
 
     index_dof = {p.getBodyInfo(RobotId)[0].decode('UTF-8'): -1, }
 
@@ -528,11 +604,12 @@ def walking_sim():
         index_dof[p.getJointInfo(RobotId, id)[12].decode(
             'UTF-8')] = p.getJointInfo(RobotId, id)[3] - 7
 
-    walk.setVelocity([0.1, 0, 0])
+    walk.setVelocity([0, 0, 0])
     foot_step = [0, ] * 10
 
     torso_pos = []
     torso_zmp = []
+    state_err = []
     left_rel_foot_pos = []
     right_rel_foot_pos = []
     swing_foot_pos = []
@@ -540,22 +617,36 @@ def walking_sim():
     left_foot_y = []
 
     debug = False
-    plot_2d = False
+    plot_2d = True
+
+    print("Index DoF", index_dof)
 
     while p.isConnected():
 
+        # Get states
+        left_foot_pose = p.getLinkState(RobotId, index['left_foot_link'])[4:6]
+        right_foot_pose = p.getLinkState(
+            RobotId, index['right_foot_link'])[4:6]
+        com_position = p.getLinkState(RobotId, index['body_link'])[4]
+        torso_orientation = p.getLinkState(RobotId, index['body_link'])[5]
+        torso_pose = (com_position, torso_orientation)
+
+        # print('Left foot: \n', left_foot_pose)
+        # print('Right foot: \n', right_foot_pose)
+        # print('Torso: \n', torso_pose)
+
         # Get current input and output for each step
-        torso_traj, left_foot_traj, right_foot_traj = walk.get_walk_pattern()
+        torso_traj, left_foot_traj, right_foot_traj, joint_angles = walk.get_walk_pattern(
+            torso_pose, left_foot_pose, right_foot_pose, joint_angles)
+
         if debug:
             torso_zmp.append(walk.x_zmp)
+            state_err.append(walk.x_err)
             torso_pos.append(torso_traj)
             left_rel_foot_pos.append(left_foot_traj.copy())
             right_rel_foot_pos.append(right_foot_traj.copy())
             swing_foot_pos.append(walk.swing_foot_traj.copy())
             supp_foot_pos.append(walk.supp_foot_traj.copy())
-
-        joint_angles = kine.solve_ik(
-            left_foot_traj, right_foot_traj, joint_angles)
 
         # Change velocity every 10 steps
         if not debug and walk.steps_count % 11 == 0:
@@ -584,6 +675,7 @@ def walking_sim():
     if debug:
         torso_pos = np.asarray(torso_pos).squeeze()
         torso_zmp = np.asarray(torso_zmp).squeeze()
+        state_err = np.asarray(state_err).squeeze()
         left_rel_foot_pos = np.array(left_rel_foot_pos).squeeze()
         right_rel_foot_pos = np.array(right_rel_foot_pos).squeeze()
         swing_foot_pos = np.array(swing_foot_pos).squeeze()
@@ -591,7 +683,7 @@ def walking_sim():
 
         # Plot 2D
         if plot_2d:
-            fig, axs = plt.subplots(3, 2)
+            fig, axs = plt.subplots(4, 2)
             fig.tight_layout(pad=1.0)
             axs = axs.ravel()
 
@@ -610,6 +702,10 @@ def walking_sim():
             axs[4].plot(left_rel_foot_pos[:, 0], label='Foot Left X')
             axs[4].plot(right_rel_foot_pos[:, 0], label='Foot Right X')
             axs[4].legend(loc='upper left', prop={'size': 10})
+            axs[6].plot(state_err[:, 0], label='State error X')
+            axs[6].legend(loc='upper left', prop={'size': 10})
+            axs[7].plot(state_err[:, 1], label='State error Y')
+            axs[7].legend(loc='upper left', prop={'size': 10})
 
         # Plot 3D
         else:

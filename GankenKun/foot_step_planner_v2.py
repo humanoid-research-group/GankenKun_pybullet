@@ -70,6 +70,31 @@ class foot_step_planner():
             a = a - 2 * np.pi
         return a
 
+    def calcSuppFunction(self, norm_t):
+
+        h_func = 0
+        if norm_t < self.norm_t_begin:
+            h_func = norm_t / self.norm_t_begin
+        elif norm_t >= self.norm_t_begin and norm_t < self.norm_t_end:
+            h_func = 1
+        elif norm_t >= self.norm_t_end and norm_t < 1:
+            h_func = (1 - norm_t) / (1 - self.norm_t_end)
+        return h_func
+
+    def calcSuppPhase(self, t_time):
+
+        norm_t = t_time / self.t_step
+
+        h_func = 0
+        if norm_t < self.norm_t_begin:
+            h_func = 0
+        elif norm_t >= self.norm_t_begin and norm_t < self.norm_t_end:
+            h_func = (norm_t - self.norm_t_begin) / \
+                (self.norm_t_end - self.norm_t_begin)
+        elif norm_t >= self.norm_t_end:
+            h_func = 1
+        return h_func
+
     def calcHfunc(self, t_time, norm_t):
         """Horizontal Trajectory function
 
