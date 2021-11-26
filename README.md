@@ -114,6 +114,7 @@ python GankenKun/preview_control_v2.py
 python GankenKun_velocity_control.py
 ```
 
+[![walking-preview-youtube](http://img.youtube.com/vi/W16Qmjq5a-A/0.jpg)](http://www.youtube.com/watch?v=W16Qmjq5a-A)
 
 ### For more detail  
 http://www.cit-brains.net/  
