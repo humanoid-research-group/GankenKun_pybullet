@@ -894,6 +894,282 @@
       <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
     </inertial>
   </link>
+  <!-- <joint name="r_sole_frame" type="fixed">
+    <origin rpy="0 0 0" xyz="0.022 -0.021 0"/>
+    <axis xyz="0.0 0.0 0.0"/>
+    <parent link="right_foot_link"/>
+    <child link="r_sole"/>
+  </joint>
+  <link name="r_sole">
+    <inertial>
+      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+  </link>
+
+  <joint name="l_sole_frame" type="fixed">
+    <origin rpy="0 0 0" xyz="0.022 0.021 0"/>
+    <axis xyz="0.0 0.0 0.0"/>
+    <parent link="left_foot_link"/>
+    <child link="l_sole"/>
+  </joint>
+  <link name="l_sole">
+    <inertial>
+      <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
+      <mass value="1e-09"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
+  </link>
+
+  <joint name="RRB" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.08325 -0.04125 0"/>
+    <axis xyz="0.0 0 1.0"/>
+    <parent link="r_sole"/>
+    <child link="rrb"/>
+    <limit effort="0.0" lower="0" upper="0" velocity="0.0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+  <link name="rrb">
+    <inertial>
+      <origin rpy="0.0 0.0 0.0" xyz="-1.37337e-17 0.000155519 -0.00775879"/>
+      <mass value="0.00165976"/>
+      <inertia ixx="4.3352e-08" ixy="-5.41947e-26" ixz="3.45502e-24" iyy="4.44049e-08" iyz="-1.0993e-09" izz="3.04397e-08"/>
+    </inertial>
+    <visual>
+      <origin rpy="3.60539e-18 -8.45708e-17 1.33887e-18" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+      <material name="flex_stollen_material">
+        <color rgba="0.615686 0.811765 0.929412 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="3.60539e-18 -8.45708e-17 1.33887e-18" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="RRF" type="fixed">
+    <origin rpy="0 0 0" xyz="0.08325 -0.04125 0"/>
+    <axis xyz="0.0 1.22465e-16 1.0"/>
+    <parent link="r_sole"/>
+    <child link="rrf"/>
+    <limit effort="0.0" lower="0" upper="0" velocity="0.0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+  <link name="rrf">
+    <inertial>
+      <origin rpy="0.0 0.0 0.0" xyz="-4.15201e-17 0.000155519 -0.00775879"/>
+      <mass value="0.00165976"/>
+      <inertia ixx="4.3352e-08" ixy="-1.71608e-26" ixz="2.07716e-24" iyy="4.44049e-08" iyz="-1.0993e-09" izz="3.04397e-08"/>
+    </inertial>
+    <visual>
+      <origin rpy="-2.05778e-18 -5.89301e-17 1.25017e-18" xyz="-4.16334e-17 1.38778e-17 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+      <material name="flex_stollen_material">
+        <color rgba="0.615686 0.811765 0.929412 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="3.60539e-18 -8.45708e-17 1.33887e-18" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="RLF" type="fixed">
+    <origin rpy="0 0 0" xyz="0.08325 0.04125 0"/>
+    <axis xyz="0.0 1.22465e-16 1.0"/>
+    <parent link="r_sole"/>
+    <child link="rlf"/>
+    <limit effort="0.0" lower="0" upper="0" velocity="0.0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+  <link name="rlf">
+    <inertial>
+      <origin rpy="0.0 0.0 0.0" xyz="-1.36915e-17 0.000155519 -0.00775879"/>
+      <mass value="0.00165976"/>
+      <inertia ixx="4.3352e-08" ixy="9.47585e-26" ixz="8.92562e-25" iyy="4.44049e-08" iyz="-1.0993e-09" izz="3.04397e-08"/>
+    </inertial>
+    <visual>
+      <origin rpy="-3.73069e-18 2.62616e-17 -9.07888e-20" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+      <material name="flex_stollen_material">
+        <color rgba="0.615686 0.811765 0.929412 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="3.60539e-18 -8.45708e-17 1.33887e-18" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="RLB" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.08325 0.04125 0"/>
+    <axis xyz="0.0 1.22465e-16 1.0"/>
+    <parent link="r_sole"/>
+    <child link="rlb"/>
+    <limit effort="0.0" lower="0" upper="0" velocity="0.0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+  <link name="rlb">
+    <inertial>
+      <origin rpy="0.0 0.0 0.0" xyz="1.39932e-17 0.000155519 -0.00775879"/>
+      <mass value="0.00165976"/>
+      <inertia ixx="4.3352e-08" ixy="-3.37492e-26" ixz="6.89534e-25" iyy="4.44049e-08" iyz="-1.0993e-09" izz="3.04397e-08"/>
+    </inertial>
+    <visual>
+      <origin rpy="3.23006e-18 -1.19123e-17 2.03698e-19" xyz="1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+      <material name="flex_stollen_material">
+        <color rgba="0.615686 0.811765 0.929412 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="3.60539e-18 -8.45708e-17 1.33887e-18" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="LRB" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.08325 -0.04125 0"/>
+    <axis xyz="0.0 0 1.0"/>
+    <parent link="l_sole"/>
+    <child link="lrb"/>
+    <limit effort="0.0" lower="0" upper="0" velocity="0.0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+  <link name="lrb">
+    <inertial>
+      <origin rpy="0.0 0.0 0.0" xyz="-1.38113e-17 0.000155519 -0.00775879"/>
+      <mass value="0.00165976"/>
+      <inertia ixx="4.3352e-08" ixy="1.6966e-26" ixz="-1.09118e-24" iyy="4.44049e-08" iyz="-1.0993e-09" izz="3.04397e-08"/>
+    </inertial>
+    <visual>
+      <origin rpy="8.27693e-33 1.54334e-17 -1.78073e-30" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+      <material name="flex_stollen_material">
+        <color rgba="0.615686 0.811765 0.929412 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="3.60539e-18 -8.45708e-17 1.33887e-18" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="LRF" type="fixed">
+    <origin rpy="0 0 0" xyz="0.08325 -0.04125 0"/>
+    <axis xyz="0.0 1.22465e-16 1.0"/>
+    <parent link="l_sole"/>
+    <child link="lrf"/>
+    <limit effort="0.0" lower="0" upper="0" velocity="0.0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+  <link name="lrf">
+    <inertial>
+      <origin rpy="0.0 0.0 0.0" xyz="2.78989e-17 0.000155519 -0.00775879"/>
+      <mass value="0.00165976"/>
+      <inertia ixx="4.3352e-08" ixy="2.25172e-27" ixz="8.03696e-25" iyy="4.44049e-08" iyz="-1.0993e-09" izz="3.04397e-08"/>
+    </inertial>
+    <visual>
+      <origin rpy="1.27589e-31 2.04832e-18 -3.75079e-32" xyz="2.77556e-17 -3.46945e-18 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+      <material name="flex_stollen_material">
+        <color rgba="0.615686 0.811765 0.929412 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="3.60539e-18 -8.45708e-17 1.33887e-18" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="LLF" type="fixed">
+    <origin rpy="0 0 0" xyz="0.08325 0.04125 0"/>
+    <axis xyz="0.0 1.22465e-16 1.0"/>
+    <parent link="l_sole"/>
+    <child link="llf"/>
+    <limit effort="0.0" lower="0" upper="0" velocity="0.0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+  <link name="llf">
+    <inertial>
+      <origin rpy="0.0 0.0 0.0" xyz="-1.37344e-17 0.000155519 -0.00775879"/>
+      <mass value="0.00165976"/>
+      <inertia ixx="4.3352e-08" ixy="2.25172e-27" ixz="8.03696e-25" iyy="4.44049e-08" iyz="-1.0993e-09" izz="3.04397e-08"/>
+    </inertial>
+    <visual>
+      <origin rpy="1.27589e-31 2.04832e-18 -3.75079e-32" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+      <material name="flex_stollen_material">
+        <color rgba="0.615686 0.811765 0.929412 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="3.60539e-18 -8.45708e-17 1.33887e-18" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="LLB" type="fixed">
+    <origin rpy="0 0 0" xyz="-0.08325 0.04125 0"/>
+    <axis xyz="0.0 1.22465e-16 1.0"/>
+    <parent link="l_sole"/>
+    <child link="llb"/>
+    <limit effort="0.0" lower="0" upper="0" velocity="0.0"/>
+    <dynamics damping="0.0" friction="0.0"/>
+  </joint>
+  <link name="llb">
+    <inertial>
+      <origin rpy="0.0 0.0 0.0" xyz="1.39725e-17 0.000155519 -0.00775879"/>
+      <mass value="0.00165976"/>
+      <inertia ixx="4.3352e-08" ixy="-2.54026e-27" ixz="-3.40123e-27" iyy="4.44049e-08" iyz="-1.0993e-09" izz="3.04397e-08"/>
+    </inertial>
+    <visual>
+      <origin rpy="3.52487e-31 -2.31079e-18 4.55783e-31" xyz="1.38778e-17 -1.38778e-17 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+      <material name="flex_stollen_material">
+        <color rgba="0.615686 0.811765 0.929412 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="3.60539e-18 -8.45708e-17 1.33887e-18" xyz="-1.38778e-17 0.0 -0.01"/>
+      <geometry>
+        <mesh filename="URDF/meshes/STL/flex_stollen.stl"/>
+      </geometry>
+    </collision>
+  </link> -->
+  
   <!-- camera joints -->
   <joint name="camera_joint" type="fixed">
     <parent link="head_yaw_link"/>
@@ -1568,5 +1844,63 @@
         <frameName>imu_link</frameName>
       </plugin>
     </sensor>
+  </gazebo>
+  <gazebo>
+    <plugin filename="libgazebo_ros_f3d.so" name="gazebo_ros_f3d">
+      <alwaysOn>true</alwaysOn>
+      <updateRate>100.0</updateRate>
+      <bodyName>llb</bodyName>
+      <topicName>sim_strain_gauges/llb</topicName>
+      <robotNamespace/>
+    </plugin>
+    <plugin filename="libgazebo_ros_f3d.so" name="gazebo_ros_f3d">
+      <alwaysOn>true</alwaysOn>
+      <updateRate>100.0</updateRate>
+      <bodyName>llf</bodyName>
+      <topicName>sim_strain_gauges/llf</topicName>
+      <robotNamespace/>
+    </plugin>
+    <plugin filename="libgazebo_ros_f3d.so" name="gazebo_ros_f3d">
+      <alwaysOn>true</alwaysOn>
+      <updateRate>100.0</updateRate>
+      <bodyName>lrf</bodyName>
+      <topicName>sim_strain_gauges/lrf</topicName>
+      <robotNamespace/>
+    </plugin>
+    <plugin filename="libgazebo_ros_f3d.so" name="gazebo_ros_f3d">
+      <alwaysOn>true</alwaysOn>
+      <updateRate>100.0</updateRate>
+      <bodyName>lrb</bodyName>
+      <topicName>sim_strain_gauges/lrb</topicName>
+      <robotNamespace/>
+    </plugin>
+    <plugin filename="libgazebo_ros_f3d.so" name="gazebo_ros_f3d">
+      <alwaysOn>true</alwaysOn>
+      <updateRate>100.0</updateRate>
+      <bodyName>rlb</bodyName>
+      <topicName>sim_strain_gauges/rlb</topicName>
+      <robotNamespace/>
+    </plugin>
+    <plugin filename="libgazebo_ros_f3d.so" name="gazebo_ros_f3d">
+      <alwaysOn>true</alwaysOn>
+      <updateRate>100.0</updateRate>
+      <bodyName>rlf</bodyName>
+      <topicName>sim_strain_gauges/rlf</topicName>
+      <robotNamespace/>
+    </plugin>
+    <plugin filename="libgazebo_ros_f3d.so" name="gazebo_ros_f3d">
+      <alwaysOn>true</alwaysOn>
+      <updateRate>100.0</updateRate>
+      <bodyName>rrf</bodyName>
+      <topicName>sim_strain_gauges/rrf</topicName>
+      <robotNamespace/>
+    </plugin>
+    <plugin filename="libgazebo_ros_f3d.so" name="gazebo_ros_f3d">
+      <alwaysOn>true</alwaysOn>
+      <updateRate>100.0</updateRate>
+      <bodyName>rrb</bodyName>
+      <topicName>sim_strain_gauges/rrb</topicName>
+      <robotNamespace/>
+    </plugin>
   </gazebo>
 </robot>

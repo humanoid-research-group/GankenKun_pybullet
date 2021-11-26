@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Dict, Optional
 
 import pybullet as p
 import numpy as np
 from kinematics import *
 from foot_step_planner_v2 import *
 from preview_control_v2 import *
+from sensors import *
 from time import sleep
 import csv
 
@@ -32,7 +33,7 @@ class walking():
         Time step, by default 0.01
     """
 
-    def __init__(self, kine: kinematics, pc: preview_control, fsp: foot_step_planner, foot_offset: List = [0, 0, 0], dt: float = 0.01):
+    def __init__(self, kine: kinematics, pc: preview_control, fsp: foot_step_planner, dt: float = 0.01, foot_offset: List = [0, 0, 0], pressure_sensors: Optional[Dict] = None):
         self.kine = kine
         self.pc = pc
         self.fsp = fsp
@@ -44,11 +45,13 @@ class walking():
         self.t_sim = 0
         self.dt_sim = dt
         self.z_step_height = 0.04
+        self.pressure_sensors = pressure_sensors
 
         # Plan N steps
         self.zmp_horizon = []
         self.steps_count = 1
         self.first_step = True
+        self.stand = False
 
         # Frame containers
         self.init_supp_position = np.zeros(
@@ -102,11 +105,12 @@ class walking():
         self.x_err = np.zeros((2, 1), dtype=np.float32)  # x,y
         self.x_err_prev = np.zeros((2, 1), dtype=np.float32)  # x,y
         self.x_dot_err = np.zeros((2, 1), dtype=np.float32)  # x,y
+        self.curr_zmp = np.zeros((2, 1), dtype=np.float32)  # x,y
 
         # Feedback control
         # TODO: Gain tuning
-        self.ank_kp = {'pitch': 0.1, 'roll': 0.1}
-        self.ank_kd = {'pitch': 0.01, 'roll': 0.01}
+        self.ank_kp = {'pitch': 1.5, 'roll': 0.1}
+        self.ank_kd = {'pitch': 0.1, 'roll': 0.001}
         self.hip_max = np.radians(40)
         self.Thip = [0.3 * self.fsp.t_step, 0.5 *
                      self.fsp.t_step]
@@ -157,6 +161,8 @@ class walking():
     def calculateCOMTraj(self, t_time: float, x_com_2d: np.ndarray):
 
         norm_t_time = t_time / self.fsp.t_step
+        if self.stand:
+            norm_t_time = 0
 
         init_torso_yaw = self.init_torso_position[2]
         target_torso_yaw = self.target_torso_position[2]
@@ -180,6 +186,9 @@ class walking():
             The time since the beginning of the step
         """
         norm_t_time = t_time / self.fsp.t_step
+        if self.stand:
+            norm_t_time = 0
+
         h_phase = self.fsp.calcHfunc(t_time, norm_t_time)
 
         if self.first_step:
@@ -257,7 +266,7 @@ class walking():
         # print('Left foot w.r.t Torso ', self.left_foot_traj.reshape(1, -1))
         # print('#### \n')
 
-    def get_walk_pattern(self, torso_pose: Tuple, left_foot_pose: Tuple, right_foot_pose: Tuple, curr_joint_angles: List):
+    def get_walk_pattern(self, torso_pose: Tuple, left_foot_pose: Tuple, right_foot_pose: Tuple, curr_joint_angles: List, res_zmp: np.ndarray = None):
         """Compute walk pattern at time (t)
 
         Returns
@@ -294,7 +303,21 @@ class walking():
             x_diff = np.arctan2(state_left_p[:2] - state_torso_p[:2], np.array(
                 [[self.pc.com_height], [self.pc.com_height]], dtype=np.float32))
 
-        # Calculate the target torso and foots
+        # Compute ZMP
+        if res_zmp:
+            # l_x, l_y, r_x, r_y, l_z, r_z
+
+            mat_pos = np.array([[float(self.cur_lfoot[0]), float(self.cur_rfoot[0])],
+                                [float(self.cur_lfoot[1]), float(self.cur_rfoot[1])]])
+            forces = np.array([float(res_zmp[4]),
+                               float(res_zmp[5])]).reshape((2, 1))
+            computed_zmp = np.matmul(mat_pos, forces)
+            total_force = float(res_zmp[4] + res_zmp[5])
+            self.curr_zmp = np.true_divide(
+                computed_zmp, total_force) if total_force > 0 else np.zeros((2, 1))
+            # np.divide(computed_zmp, total_force,
+            #   out=self.curr_zmp, where=total_force != 0)
+            # Calculate the target torso and foots
         if self.t_sim == 0:
 
             # Plan up to N steps
@@ -382,12 +405,12 @@ class walking():
             self.left_foot_traj, self.right_foot_traj, curr_joint_angles)
 
         # TODO: Check roll direction
-        if self.left_is_swing:
-            target_joint_angles[self.kine.index_dof['right_ankle_pitch_link']] -= ankle_d_p
-            target_joint_angles[self.kine.index_dof['right_ankle_roll_link']] -= ankle_d_r
-        else:
-            target_joint_angles[self.kine.index_dof['left_ankle_pitch_link']] -= ankle_d_p
-            target_joint_angles[self.kine.index_dof['left_ankle_roll_link']] += ankle_d_r
+        # if self.left_is_swing:
+        # target_joint_angles[self.kine.index_dof['right_ankle_pitch_link']] -= ankle_d_p
+        # target_joint_angles[self.kine.index_dof['right_ankle_roll_link']] -= ankle_d_r
+        # else:
+        # target_joint_angles[self.kine.index_dof['left_ankle_pitch_link']] -= ankle_d_p
+        # target_joint_angles[self.kine.index_dof['left_ankle_roll_link']] += ankle_d_r
 
         self.t_sim += self.dt_sim
 
@@ -402,6 +425,59 @@ class walking():
             # print("#################### SWITCH #################")
 
         return self.torso_traj, self.left_foot_traj, self.right_foot_traj, target_joint_angles
+
+
+def updateSensors(pressure_sensors: Optional[Dict] = None):
+    if len(pressure_sensors) == 0:
+        return
+
+    f_llb = pressure_sensors["LLB"].get_force()
+    f_llf = pressure_sensors["LLF"].get_force()
+    f_lrf = pressure_sensors["LRF"].get_force()
+    f_lrb = pressure_sensors["LRB"].get_force()
+
+    f_rlb = pressure_sensors["RLB"].get_force()
+    f_rlf = pressure_sensors["RLF"].get_force()
+    f_rrf = pressure_sensors["RRF"].get_force()
+    f_rrb = pressure_sensors["RRB"].get_force()
+
+    left_foot_sensors = np.array(
+        [f_llf, f_llb, f_lrb, f_lrf], dtype=np.float32)
+    right_foot_sensors = np.array(
+        [f_rlf, f_rlb, f_rrb, f_rrf], dtype=np.float32)
+
+    # center position on foot: half distance between sensors
+    pos_x = 0.08325
+    pos_y = 0.04125
+    threshold = 0.0
+
+    # Sum of filtered values
+    sum_of_forces_l = f_llb[1] + f_llf[1] + f_lrf[1] + f_lrb[1]
+    cop_l_x = 0
+    cop_l_y = 0
+    if sum_of_forces_l > threshold:
+        cop_l_x = (f_llf[1] + f_lrf[1] - f_llb[1] -
+                   f_lrb[1]) * pos_x / sum_of_forces_l
+        cop_l_x = max(min(cop_l_x, pos_x), -pos_x)
+        cop_l_y = (f_llf[1] + f_llb[1] - f_lrf[1] -
+                   f_lrb[1]) * pos_y / sum_of_forces_l
+        cop_l_y = max(min(cop_l_y, pos_y), -pos_y)
+
+    cop_r_x = 0
+    cop_r_y = 0
+    sum_of_forces_r = f_rlb[1] + f_rlf[1] + f_rrf[1] + f_rrb[1]
+    if sum_of_forces_r > threshold:
+        cop_r_x = (f_rlf[1] + f_rrf[1] - f_rlb[1] -
+                   f_rrb[1]) * pos_x / sum_of_forces_r
+        cop_r_x = max(min(cop_r_x, pos_x), -pos_x)
+        cop_r_y = (f_rlf[1] + f_rlb[1] - f_rrf[1] -
+                   f_rrb[1]) * pos_y / sum_of_forces_r
+        cop_r_y = max(min(cop_r_y, pos_y), -pos_y)
+
+    cop_left_right = np.array(
+        [cop_l_x, cop_l_y, cop_r_x, cop_r_y, sum_of_forces_l, sum_of_forces_r], dtype=np.float32)
+
+    return left_foot_sensors, right_foot_sensors, cop_left_right
 
 
 def walking_plot():
@@ -579,14 +655,24 @@ def walking_sim():
     print('Right foot: \n', right_foot_pose)
     print('Torso: \n', torso_pose)
 
-    left_ank_roll0 = p.getLinkState(RobotId, index['left_ankle_roll_link'])[0]
-    left_ank_pitch0 = p.getLinkState(
-        RobotId, index['left_ankle_pitch_link'])[0]
-
     joint_angles = []
+    pressure_sensors = {}
+    index_dof = {p.getBodyInfo(RobotId)[0].decode('UTF-8'): -1, }
+
     for id in range(p.getNumJoints(RobotId)):
-        if p.getJointInfo(RobotId, id)[3] > -1:
+        joint_info = p.getJointInfo(RobotId, id)
+        name = joint_info[1].decode('utf-8')
+        type = joint_info[2]
+
+        # Update joint angles
+        if joint_info[3] > -1:
             joint_angles += [0, ]
+        # Update joint index
+        index_dof[joint_info[12].decode('utf-8')] = joint_info[3] - 7
+        # if name in ["LLB", "LLF", "LRF", "LRB", "RLB", "RLF", "RRF", "RRB"]:
+        #     p.enableJointForceTorqueSensor(RobotId, id)
+        #     pressure_sensors[name] = PressureSensor(
+        #         name, id, RobotId, 10, 5)
 
     preview_t = 1.5
     pc_dt = 0.0015
@@ -595,10 +681,8 @@ def walking_sim():
     fsp = foot_step_planner(dt=sys_dt, n_steps=4, dsp_ratio=0.15,
                             t_step=0.34, foot_separation=0.044)
     pc = preview_control(dt=pc_dt, preview_t=preview_t)
-    walk = walking(kine, pc, fsp,
-                   foot_offset=[-0.025, 0.01, 0.02], dt=sys_dt)
-
-    index_dof = {p.getBodyInfo(RobotId)[0].decode('UTF-8'): -1, }
+    walk = walking(kine, pc, fsp, dt=sys_dt,
+                   foot_offset=[-0.025, 0.01, 0.02])
 
     for id in range(p.getNumJoints(RobotId)):
         index_dof[p.getJointInfo(RobotId, id)[12].decode(
@@ -610,11 +694,14 @@ def walking_sim():
     torso_pos = []
     torso_zmp = []
     state_err = []
+    computed_zmp = []
     left_rel_foot_pos = []
     right_rel_foot_pos = []
     swing_foot_pos = []
     supp_foot_pos = []
     left_foot_y = []
+    left_cop = []
+    right_cop = []
 
     debug = False
     plot_2d = True
@@ -631,18 +718,22 @@ def walking_sim():
         torso_orientation = p.getLinkState(RobotId, index['body_link'])[5]
         torso_pose = (com_position, torso_orientation)
 
-        # print('Left foot: \n', left_foot_pose)
-        # print('Right foot: \n', right_foot_pose)
-        # print('Torso: \n', torso_pose)
+        # Update fsr
+        res_zmp = None
+        if len(pressure_sensors):
+            l_sensors, r_sensors, res_zmp = updateSensors(pressure_sensors)
+            left_cop.append(res_zmp[:2])
+            right_cop.append(res_zmp[2:4])
 
         # Get current input and output for each step
         torso_traj, left_foot_traj, right_foot_traj, joint_angles = walk.get_walk_pattern(
-            torso_pose, left_foot_pose, right_foot_pose, joint_angles)
+            torso_pose, left_foot_pose, right_foot_pose, joint_angles, res_zmp)
 
         if debug:
             torso_zmp.append(walk.x_zmp)
             state_err.append(walk.x_err)
             torso_pos.append(torso_traj)
+            computed_zmp.append(walk.curr_zmp)
             left_rel_foot_pos.append(left_foot_traj.copy())
             right_rel_foot_pos.append(right_foot_traj.copy())
             swing_foot_pos.append(walk.swing_foot_traj.copy())
@@ -650,10 +741,10 @@ def walking_sim():
 
         # Change velocity every 10 steps
         if not debug and walk.steps_count % 11 == 0:
-            if walk.steps_count < 100:
-                vel_x = np.random.uniform(0, 0.1)
-                vel_y = np.random.uniform(-0.1, 0.1)
-                vel_th = np.random.uniform(-0.1, 0.1)
+            if walk.steps_count < 80:
+                vel_x = np.random.uniform(0, 0.4)
+                vel_y = np.random.uniform(-0.1, 0.2)
+                vel_th = np.random.uniform(-0.1, 0.25)
             else:
                 vel_x = 0
                 vel_y = 0
@@ -668,6 +759,8 @@ def walking_sim():
                     RobotId, id, p.POSITION_CONTROL, joint_angles[qIndex - 7])
 
         p.stepSimulation()
+        for name, ps in pressure_sensors.items():
+            ps.filter_step()
 
         if debug and walk.steps_count > 10:
             break
@@ -680,11 +773,14 @@ def walking_sim():
         right_rel_foot_pos = np.array(right_rel_foot_pos).squeeze()
         swing_foot_pos = np.array(swing_foot_pos).squeeze()
         supp_foot_pos = np.array(supp_foot_pos).squeeze()
+        left_cop = np.array(left_cop)
+        right_cop = np.array(right_cop)
+        computed_zmp = np.array(computed_zmp).squeeze()
 
         # Plot 2D
         if plot_2d:
-            fig, axs = plt.subplots(4, 2)
-            fig.tight_layout(pad=1.0)
+            fig, axs = plt.subplots(3, 4)
+            fig.tight_layout(pad=0.1)
             axs = axs.ravel()
 
             axs[0].plot(torso_pos[:, 0], label='Torso X')
@@ -693,19 +789,36 @@ def walking_sim():
             axs[1].plot(torso_pos[:, 1], label='Torso Y')
             axs[1].plot(torso_zmp[:, 1], label='ZMP Y')
             axs[1].legend(loc='upper left', prop={'size': 10})
-            axs[2].plot(left_rel_foot_pos[:, 2], label='Foot Left Z')
-            axs[2].plot(right_rel_foot_pos[:, 2], label='Foot Right Z')
+
+            axs[2].plot(state_err[:, 0], label='State error X')
             axs[2].legend(loc='upper left', prop={'size': 10})
-            axs[3].plot(left_rel_foot_pos[:, 1], label='Foot Left Y')
-            axs[3].plot(right_rel_foot_pos[:, 1], label='Foot Right Y')
+            axs[3].plot(state_err[:, 1], label='State error Y')
             axs[3].legend(loc='upper left', prop={'size': 10})
-            axs[4].plot(left_rel_foot_pos[:, 0], label='Foot Left X')
-            axs[4].plot(right_rel_foot_pos[:, 0], label='Foot Right X')
+
+            axs[4].plot(left_rel_foot_pos[:, 2], label='Foot Left Z')
+            axs[4].plot(right_rel_foot_pos[:, 2], label='Foot Right Z')
             axs[4].legend(loc='upper left', prop={'size': 10})
-            axs[6].plot(state_err[:, 0], label='State error X')
+            axs[5].plot(left_rel_foot_pos[:, 1], label='Foot Left Y')
+            axs[5].plot(right_rel_foot_pos[:, 1], label='Foot Right Y')
+            axs[5].legend(loc='upper left', prop={'size': 10})
+            axs[6].plot(left_rel_foot_pos[:, 0], label='Foot Left X')
+            axs[6].plot(right_rel_foot_pos[:, 0], label='Foot Right X')
             axs[6].legend(loc='upper left', prop={'size': 10})
-            axs[7].plot(state_err[:, 1], label='State error Y')
-            axs[7].legend(loc='upper left', prop={'size': 10})
+
+            if len(left_cop):
+                axs[8].plot(left_cop[:, 0], label='Foot Left CoP X')
+                axs[8].plot(left_cop[:, 1], label='Foot Left CoP Y')
+                axs[8].legend(loc='upper left', prop={'size': 10})
+
+            if len(right_cop):
+                axs[9].plot(right_cop[:, 0], label='Foot Right CoP X')
+                axs[9].plot(right_cop[:, 1], label='Foot Right CoP Y')
+                axs[9].legend(loc='upper left', prop={'size': 10})
+
+            axs[10].plot(computed_zmp[:, 0], label='Computed ZMP X')
+            axs[10].legend(loc='upper left', prop={'size': 10})
+            axs[11].plot(computed_zmp[:, 1], label='Computed ZMP Y')
+            axs[11].legend(loc='upper left', prop={'size': 10})
 
         # Plot 3D
         else:
