@@ -47,25 +47,10 @@ Calculating the footsteps from the goal position
 Calculating the footsteps and zmpref from the given velocity command and initial states  
 
 - preview_control_v2.py  
-Generating the trajectory of the center of mass from the zmpref based on the preview controller  
+Generating the trajectory of the center of mass from the zmpref based on the preview controller. Refer to [yiqin/Preview-Control-Motion-Planning-in-Humanoid](https://github.com/yiqin/Preview-Control-Motion-Planning-in-Humanoid/blob/master/ZmpPreview.py)
 
 - walking_v2.py  
 Main walking engine and controller from given input and the initial state  
-
-### ZMP Walking Pattern Using Preview Control
-
-## Walk pattern 
-```
-python GankenKun/preview_control_v2.py 
-```
-
-![](figures/zmp_walk_pattern.png)
-
-## Walk simulation
-
-```
-python GankenKun_velocity_control.py
-```
 
 ### What is GankenKun
 
@@ -100,6 +85,35 @@ Calculating the Jacobian
 
 - COG_jacobian.py  
 Calculating the centor of gravity Jacobian  
+
+### ZMP Walking Using Preview Control
+
+References
+> - Maximo, M. R. (2015). Omnidirectional ZMP-Based Walking for a Humanoid Robot. Master's thesis, Aeronautics Institute of Technology.
+> - Kajita, S., Hirukawa, H., Harada, K., & Yokoi, K. (2016). Introduction to Humanoid Robotics (1st ed). Springer Publishing Company, Incorporated.
+> - Kajita, S., Kanehiro, F., Kaneko, K., Fujiwara, K., Harada, K., Yokoi, K., & Hirukawa, H. (2003). Biped walking pattern generation by using preview control of zero-moment point. 2003 IEEE International Conference on Robotics and Automation (Cat. No.03CH37422).
+> - Park, J., & Youm, Y. (2007). General ZMP Preview Control for Bipedal Walking. Proceedings 2007 IEEE International Conference on Robotics and Automation.
+
+### Walk Pattern 
+
+```
+python GankenKun/foot_step_planner_v2.py 
+```
+
+### Preview Control 
+
+```
+python GankenKun/preview_control_v2.py 
+```
+
+![](figures/zmp_walk_pattern.png)
+
+### Walk simulation
+
+```
+python GankenKun_velocity_control.py
+```
+
 
 ### For more detail  
 http://www.cit-brains.net/  

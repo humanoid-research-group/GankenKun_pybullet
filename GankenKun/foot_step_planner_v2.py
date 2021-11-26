@@ -278,17 +278,25 @@ class foot_step_planner():
         o_z = 1 if ((cmd_a >= 0 and left_is_swing) or
                     (cmd_a < 0 and not left_is_swing)) else 0
 
-        # TODO: Check safety algorithm
-        # Z Safety check to make sure support no pointing inward > 15 deg
-        a_diff = (torso_k1[2] - init_supp_pos[2])
-        if np.abs(a_diff) > np.radians(15):
-            torso_k1[2] -= (np.radians(15) - a_diff)
+        # Torso relative to supp foot
+        rel_torso_supp = self.pose_relative2d(torso_k1, init_supp_pos)
+
+        # Z Safety check to make sure support no pointing inward
+        a_diff = rel_torso_supp[2]
+        if np.abs(a_diff) > 0:
+            # Right support
+            if left_is_swing:
+                torso_k1[2] -= np.abs(a_diff)
+            else:
+                torso_k1[2] += np.abs(a_diff)
 
         # Y torso safety check maintain foot and torso >= y_sep
-        y_diff = (torso_k1[1] - init_supp_pos[1])
+        y_diff = rel_torso_supp[1]
+
         if np.abs(y_diff) < self.y_sep:
-            diff_ = self.pose_global2d(np.array([[0], [np.abs(y_diff)], [
+            diff_ = self.pose_global2d(np.array([[0], [self.y_sep - np.abs(y_diff)], [
                 0]], dtype=np.float32), np.array([[0], [0], [torso_k1[2]]], dtype=float))
+            # Right support
             if left_is_swing:
                 torso_k1[1] += diff_[1]
             else:
