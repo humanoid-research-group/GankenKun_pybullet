@@ -1,16 +1,11 @@
 # GankenKun_pybullet
 
-![GankenKun](https://user-images.githubusercontent.com/5755200/79035466-fd011080-7bf9-11ea-807a-227fc551c4ad.jpg)
+[<img src="http://img.youtube.com/vi/W16Qmjq5a-A/0.jpg" width="720">](http://www.youtube.com/watch?v=W16Qmjq5a-A)
 
 ### Video
 
-Simulation on PyBullet  
-https://youtu.be/kJb6OzS1FoM  
-latter half: comment out `sleep`  
-Computer: Core i5 + GTX1060  
-
-RoboCup2019 (Real RoboCup Tournament)  
-https://youtu.be/kFJCTB69zTQ  
+Simulation on PyBullet
+http://www.youtube.com/watch?v=W16Qmjq5a-A
 
 ### Preparation of the development environment
 
@@ -20,17 +15,13 @@ sudo apt install python3-pip
 pip install pybullet
 pip install numpy
 pip install control
-git clone https://github.com/citbrains/GankenKun_pybullet
-cd GankenKun_pybullet
-python GankenKun.py
 ```
-
-[Microsoft Windows](https://github.com/citbrains/GankenKun_pybullet/wiki/%E9%96%8B%E7%99%BA%E7%92%B0%E5%A2%83%E3%81%AE%E6%BA%96%E5%82%99) (in Japanese)
 
 ### main program
 
-- GankenKun.py  
-Walking control to the target position  
+- GankenKun_velocity_control.py
+
+Walking control with torso velocity input
 
 ### library for GankenKun
 
@@ -113,8 +104,6 @@ python GankenKun/preview_control_v2.py
 ```
 python GankenKun_velocity_control.py
 ```
-
-[![walking-preview-youtube](http://img.youtube.com/vi/W16Qmjq5a-A/0.jpg)](http://www.youtube.com/watch?v=W16Qmjq5a-A)
 
 ### For more detail  
 http://www.cit-brains.net/  

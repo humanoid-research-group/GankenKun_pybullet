@@ -285,10 +285,10 @@ class foot_step_planner():
         a_diff = rel_torso_supp[2]
         if np.abs(a_diff) > 0:
             # Right support
-            if left_is_swing:
-                torso_k1[2] -= np.abs(a_diff)
-            else:
+            if left_is_swing and a_diff < 0:
                 torso_k1[2] += np.abs(a_diff)
+            elif not left_is_swing and a_diff > 0:
+                torso_k1[2] -= np.abs(a_diff)
 
         # Y torso safety check maintain foot and torso >= y_sep
         y_diff = rel_torso_supp[1]
